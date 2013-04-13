@@ -19,7 +19,8 @@ private:
   float distance;
   vec4 emitter;
   vec4 distance_vector;
-  //vec4 positions[NUM_PARTICLES];
+  // the position is used to calculate the distance between the particles and the emitter
+  vec4 positions[NUM_PARTICLES];
   vec4 velocities[NUM_PARTICLES];
   // random number generator
   class random randomizer;
@@ -35,7 +36,7 @@ void particles::init(int _texture, float x, float y, float w, float h) {
   emitter=vec4(0, 0, 0, 0);
   for (int i = 0; i < NUM_PARTICLES; i++) {
     //set starting position (will become an emitter)
-    //positions[i]= emitter;
+    positions[i]= emitter;
     //set starting velocity
     float j;
     velocities[i]= vec4(0, j = randomizer.get(0.0f, 0.5f), 0, 0);
@@ -51,15 +52,18 @@ void particles::init(int _texture, float x, float y, float w, float h) {
 
 void particles::move() {
   for (int i = 0; i < NUM_PARTICLES; i++) { 
-    //positions[i]+=velocities[i];
+
+    positions[i]+=velocities[i];
     model_to_world[i].translate(velocities[i].x(), velocities[i].y(), 0);
-    distance_vector = model_to_world[i].toQuaternion();
-    distance = (distance_vector.x()*distance_vector.x())+(distance_vector.y()*distance_vector.y());
-    model_to_world[i].y();
+
+    distance = (positions[i].x() * positions[i].x()) + (positions[i].y() * positions[i].y());
+
     if(distance>max_distance_squared) {
       model_to_world[i].loadIdentity();
       model_to_world[i].translate(emitter.x(), emitter.y(), 0);
+      positions[i] = emitter;
     }
+
   }
 }
 
