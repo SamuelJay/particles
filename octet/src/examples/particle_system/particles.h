@@ -9,7 +9,7 @@ public:
 private:
   int max_distance_squared;
    enum {
-    NUM_PARTICLES=4000
+    NUM_PARTICLES=3500
    };
   //where each particle is (might be a less expensive way to do this)
   mat4 model_to_projection[NUM_PARTICLES]; 
@@ -24,6 +24,8 @@ private:
   // the position is used to calculate the distance between the particles and the emitter
   vec4 positions[NUM_PARTICLES];
   vec4 velocities[NUM_PARTICLES];
+  vec4 accelerations[NUM_PARTICLES];
+  float inverse_masses[NUM_PARTICLES];
   // random number generator
   class random randomizer;
 };
