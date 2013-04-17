@@ -9,7 +9,7 @@ public:
 private:
   int max_distance_squared;
    enum {
-    NUM_PARTICLES=3500
+    NUM_PARTICLES=100
    };
   //where each particle is (might be a less expensive way to do this)
   mat4 model_to_projection[NUM_PARTICLES]; 
@@ -28,6 +28,9 @@ private:
   float inverse_masses[NUM_PARTICLES];
   // random number generator
   class random randomizer;
+  float rand_x;
+  float rand_y;
+  float rand_z;
 };
 
 particles::particles() {
@@ -37,15 +40,14 @@ particles::particles() {
 void particles::init(int _texture, float x, float y, float w, float h) {
   max_distance_squared=16;
   //give the particles there starting positions
-  emitter=vec4(0, 0, 0, 0);
+  emitter=vec4(0, 1.0f, 0, 0);
   for (int i = 0; i < NUM_PARTICLES; i++) {
     //set starting position (will become an emitter)
     positions[i]= emitter;
     //set starting velocity
-    float rand_x;
-    float rand_y;
-    float rand_z;
+    
     velocities[i]= vec4(rand_x = randomizer.get(-0.5f, 0.5f), rand_y = randomizer.get(-0.5f, 0.5f), rand_z= randomizer.get(-0.5f, 0.5f), 0);
+    accelerations[i]=vec4(0, -0.5f, 0, 0);
     model_to_world[i].loadIdentity();
     model_to_world[i].translate(emitter.x(), emitter.y(), emitter.z());
     enabled[i] = true;
@@ -68,17 +70,19 @@ void particles::init(int _texture, float x, float y, float w, float h) {
 
 void particles::move() {
   for (int i = 0; i < NUM_PARTICLES; i++) { 
-
+    
+    velocities[i]+=accelerations[i];
     positions[i]+=velocities[i];
     model_to_world[i].translate(velocities[i].x(), velocities[i].y(), velocities[i].z());
-
-    distance_squared = (positions[i].x() * positions[i].x()) + (positions[i].y() * positions[i].y()) + (positions[i].z() * positions[i].z());
-
+   
+    distance_vector=positions[i]-emitter;
+    //distance_squared = (positions[i].x() * positions[i].x()) + (positions[i].y() * positions[i].y()) + (positions[i].z() * positions[i].z());
+    distance_squared = (distance_vector.x() * distance_vector.x()) + (distance_vector.y() * distance_vector.y()) + (distance_vector.z() * distance_vector.z());
     if(distance_squared>max_distance_squared) {
       model_to_world[i].loadIdentity();
       model_to_world[i].translate(emitter.x(), emitter.y(), emitter.z());
       positions[i] = emitter;
-      
+      velocities[i] = vec4(rand_x = randomizer.get(-0.5f, 0.5f), rand_y = randomizer.get(-0.5f, 0.5f), rand_z= randomizer.get(-0.5f, 0.5f), 0);
      /* printf("\nmodel to world out:\n");
       printf("0X  : %d  0X  : %d  0Z  :  %d\n",
       model_to_world[i][0][0] , model_to_world[i][0][1], model_to_world[i][0][2], model_to_world[i][0][3]);
