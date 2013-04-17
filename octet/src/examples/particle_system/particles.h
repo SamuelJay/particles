@@ -9,7 +9,7 @@ public:
 private:
   int max_distance_squared;
    enum {
-    NUM_PARTICLES=100
+    NUM_PARTICLES=100000
    };
   //where each particle is (might be a less expensive way to do this)
   mat4 model_to_projection[NUM_PARTICLES]; 
@@ -47,7 +47,7 @@ void particles::init(int _texture, float x, float y, float w, float h) {
     //set starting velocity
     
     velocities[i]= vec4(rand_x = randomizer.get(-0.5f, 0.5f), rand_y = randomizer.get(-0.5f, 0.5f), rand_z= randomizer.get(-0.5f, 0.5f), 0);
-    accelerations[i]=vec4(0, -0.5f, 0, 0);
+    accelerations[i]=vec4(0, -0.01f, 0, 0);
     model_to_world[i].loadIdentity();
     model_to_world[i].translate(emitter.x(), emitter.y(), emitter.z());
     enabled[i] = true;
