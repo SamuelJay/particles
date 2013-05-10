@@ -1,51 +1,22 @@
 #include <time.h>
 
-class Particle{
-public:
-    enum gravity{ GRAVITY = 15 };
-    vec4 position;
-    vec4 velocity;
-    vec4 acceleration;
-    float damping;
-    float inverseMass;
-    time_t oldTime, newTime;
-    Particle();
-    void move(float);
-    double getDeltaTime();
-};
-
-Particle::Particle() : position(vec4()), velocity(vec4()), acceleration(vec4()), damping(0.0f), inverseMass(0.0f), oldTime(), newTime(){
-}
-
-double Particle::getDeltaTime(){
-    oldTime = newTime;
-    time(&newTime);
-    return difftime(newTime, oldTime);
-}
-
-void Particle::move(float time){
-
-    position += velocity *time;
-    //vec4 m_gravity(0.0f, -GRAVITY, 0.0f, 0.0f);
-    //acceleration = m_gravity;
-    velocity += acceleration *time;
-    velocity = velocity * damping;
-
-}
-
 class particles{
 
 public:
   particles();
   void init(int _texture, float x, float y, float w, float h);
   void move();
+  void move_particle(int numParticle, float deltaTime);
+  void reset_particle(int numParticle);
   void render (texture_shader &shader, mat4 &camera_to_world);
+  float getDeltaTime();
    
 private:
   int max_distance_squared;
-   enum {
-    NUM_PARTICLES=500
-   };
+  enum {
+    NUM_PARTICLES=200
+  };
+  enum gravity{ GRAVITY = -5 };
   //where each particle is (might be a less expensive way to do this)
   mat4 model_to_projection[NUM_PARTICLES]; 
   mat4 model_to_world[NUM_PARTICLES];
@@ -56,20 +27,22 @@ private:
   float distance_squared;
   vec4 emitter;
   vec4 distance_vector;
-  // the position is used to calculate the distance between the particles and the emitter
-  Particle m_particles[NUM_PARTICLES];
+  // all particles parameters
   vec4 positions[NUM_PARTICLES];
   vec4 velocities[NUM_PARTICLES];
   vec4 accelerations[NUM_PARTICLES];
-  //float inverse_masses[NUM_PARTICLES];
+  float dampings[NUM_PARTICLES];
+  float inverse_masses[NUM_PARTICLES];
   // random number generator
   class random randomizer;
   float rand_x;
   float rand_y;
   float rand_z;
+  // time stuff
+  clock_t oldTime, newTime;
 };
 
-particles::particles() {
+particles::particles() : oldTime(), newTime(){
   
 }
 
@@ -77,37 +50,24 @@ void particles::init(int _texture, float x, float y, float w, float h) {
 
   max_distance_squared=16;
   //give the particles there starting positions
-  emitter=vec4(0, 0, 0, 0);
+  emitter = vec4(0,0,0,0);
+  newTime = clock() / (CLOCKS_PER_SEC / 1000);
+  oldTime = newTime;
 
   for (int i = 0; i < NUM_PARTICLES; i++) {
-    //set starting position (will become an emitter)
-    //positions[i]= emitter;
-    //set starting velocity
-    
-    m_particles[i].acceleration = vec4(0.0f, -m_particles[i].GRAVITY, 0.0f, 0.0f);
-    m_particles[i].position = emitter;
-    m_particles[i].velocity = vec4(rand_x = randomizer.get(-5.0f, 5.0f), rand_y = randomizer.get(-5.0f, 5.0f), rand_z= randomizer.get(-5.0f, 5.0f), 0);
-    m_particles[i].inverseMass = 0;
-    m_particles[i].damping = 0.9f;
-    time(&m_particles[i].newTime);
-    m_particles[i].oldTime = m_particles[i].newTime;
 
-    //velocities[i]= vec4(rand_x = randomizer.get(-0.5f, 0.5f), rand_y = randomizer.get(-0.5f, 0.5f), rand_z= randomizer.get(-0.5f, 0.5f), 0);
-    //accelerations[i]=vec4(0, -0.02f, 0, 0);
-    model_to_world[i].loadIdentity();
-    model_to_world[i].translate(m_particles[i].position.x(),m_particles[i].position.y(),m_particles[i].position.z());
-    //model_to_world[i].translate(emitter.x(), emitter.y(), emitter.z());
+    //set starting position (will become an emitter)
+    reset_particle(i);
     enabled[i] = true;
-    
     /*printf("\nmodel to world starts:\n");
-    printf("0X  : %d  0X  : %d  0Z  :  %d\n",
+    printf("0X  : %d  0Y  : %d  0Z  :  %d\n",
     model_to_world[i][0][0] , model_to_world[i][0][1], model_to_world[i][0][2], model_to_world[i][0][3]);
-    printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-    model_to_world[i][1][0] ,model_to_world[i][1][1], model_to_world[i][1][2], model_to_world[i][1][3]);
-    printf("0X  : %d  0X  : %d  0Z  :  %d\n",
+    printf("0X  : %d  0Y  : %d  0Z  :  %d\n",
+    model_to_world[i][1][0] , model_to_world[i][1][1], model_to_world[i][1][2], model_to_world[i][1][3]);
+    printf("0X  : %d  0Y  : %d  0Z  :  %d\n",
     model_to_world[i][2][0] , model_to_world[i][2][1], model_to_world[i][2][2], model_to_world[i][2][3]);
-    printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-    model_to_world[i][3][0] ,model_to_world[i][3][1], model_to_world[i][3][2], model_to_world[i][3][3]);*/
+    printf("0X  : %d  0Y  : %d  0Z  :  %d\n",
+    model_to_world[i][3][0] , model_to_world[i][3][1], model_to_world[i][3][2], model_to_world[i][3][3]);*/
   }
   texture = _texture;
   //same size and texture for all particles
@@ -115,43 +75,56 @@ void particles::init(int _texture, float x, float y, float w, float h) {
   half_height = h * 0.5f;  
 }
 
+void particles::move_particle(int numParticle, float deltaTime){
+
+    positions[numParticle] += velocities[numParticle] * deltaTime;
+    //vec4 m_gravity(0.0f, -GRAVITY, 0.0f, 0.0f);
+    //acceleration = m_gravity;
+    velocities[numParticle] += accelerations[numParticle] * deltaTime;
+    velocities[numParticle] = velocities[numParticle] * dampings[numParticle];
+
+}
+
+void particles::reset_particle(int numParticle){
+
+    positions[numParticle] = emitter;
+    velocities[numParticle] = vec4(rand_x = randomizer.get(-2.0f, 2.0f), rand_y = randomizer.get(-2.0f, 2.0f), rand_z= randomizer.get(-2.0f, 2.0f), 0);
+    inverse_masses[numParticle] = 0.0f;
+    dampings[numParticle] = randomizer.get(0.2f, 0.9f);
+    accelerations[numParticle] = vec4(0, GRAVITY, 0, 0);
+    model_to_world[numParticle].loadIdentity();
+    model_to_world[numParticle].translate(positions[numParticle].x(), positions[numParticle].y(), positions[numParticle].z());
+
+}
+
 void particles::move() {
-  double time = m_particles[0].getDeltaTime();
+
+  float time = getDeltaTime();
+
   for (int i = 0; i < NUM_PARTICLES; i++) { 
+
+    move_particle(i, time);
+
+    model_to_world[i].translate(positions[i].x(),positions[i].y(),positions[i].z());
     
-    m_particles[i].move(time);
-
-    //velocities[i]+=accelerations[i];
-    //positions[i]+=velocities[i];
-    model_to_world[i].translate(m_particles[i].position.x(),m_particles[i].position.y(),m_particles[i].position.z());
-    //model_to_world[i].translate(positions[i].x(),positions[i].y(),positions[i].z());
-
-    distance_vector=m_particles[i].position-emitter;
-    //distance_vector=positions[i]-emitter;
+    // calculate distance from the emitter
+    distance_vector = positions[i] - emitter;
     distance_squared = (distance_vector.x() * distance_vector.x()) + (distance_vector.y() * distance_vector.y()) + (distance_vector.z() * distance_vector.z());
-    
+    // if too far away reset position
     if(distance_squared>max_distance_squared) {
-      model_to_world[i].loadIdentity();
-      model_to_world[i].translate(emitter.x(), emitter.y(), emitter.z());
-      //positions[i] = emitter;
-      //velocities[i] = vec4(rand_x = randomizer.get(-0.5f, 0.5f), rand_y = randomizer.get(-0.5f, 0.5f), rand_z= randomizer.get(-0.5f, 0.5f), 0);
-      m_particles[i].position = emitter;
-      m_particles[i].velocity = vec4(rand_x = randomizer.get(-5.0f, 5.0f), rand_y = randomizer.get(-5.0f, 5.0f), rand_z= randomizer.get(-5.0f, 5.0f), 0);
-     /* printf("\nmodel to world out:\n");
-      printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-      model_to_world[i][0][0] , model_to_world[i][0][1], model_to_world[i][0][2], model_to_world[i][0][3]);
-      printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-      model_to_world[i][1][0] ,model_to_world[i][1][1], model_to_world[i][1][2], model_to_world[i][1][3]);
-      printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-      model_to_world[i][2][0] , model_to_world[i][2][1], model_to_world[i][2][2], model_to_world[i][2][3]);
-      printf("0X  : %d  0X  : %d  0Z  :  %d\n",
-      model_to_world[i][3][0] ,model_to_world[i][3][1], model_to_world[i][3][2], model_to_world[i][3][3]);*/
+      reset_particle(i);
     }
 
   }
 }
 
-
+float particles::getDeltaTime(){
+    oldTime = newTime;
+    newTime = clock() / (CLOCKS_PER_SEC / 1000);
+    // get milliseconds
+    float diff = ((float)newTime - (float)oldTime) / 1000;
+    return diff; //difftime(newTime, oldTime);
+}
 
 void particles::render(texture_shader &shader, mat4 &camera_to_world) {
   
