@@ -44,7 +44,7 @@ public:
 private:
   int max_distance_squared;
    enum {
-    NUM_PARTICLES=500
+    NUM_PARTICLES=5000
    };
   //where each particle is (might be a less expensive way to do this)
   mat4 model_to_projection[NUM_PARTICLES]; 
